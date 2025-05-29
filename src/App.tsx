@@ -29,11 +29,16 @@ import { IntelligentMigrationAssistant } from './components/IntelligentMigration
 import { WelcomeModal } from './components/WelcomeModal';
 import { AICostForecasting } from './components/AICostForecasting';
 import { AIOptimizationWorkflow } from './components/AIOptimizationWorkflow';
+import { SmartDataPolling } from './components/SmartDataPolling';
+import { AutoscalerSlotOptimization } from './components/AutoscalerSlotOptimization';
+import { ServicesDecomposition } from './components/ServicesDecomposition';
+import { OptimizationScoreEngine } from './components/OptimizationScoreEngine';
+import { JoinPatternExplorer } from './components/JoinPatternExplorer';
 
 function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'strategy' | 'roi' | 'ai' | 'tools' | 'learn'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'strategy' | 'roi' | 'ai' | 'tools' | 'learn' | 'advanced'>('dashboard');
   const [showAIQueryOptimizer, setShowAIQueryOptimizer] = useState(false);
   const [selectedAIQuery, setSelectedAIQuery] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(false);
@@ -155,6 +160,13 @@ function App() {
                 >
                   <BookOpen className="w-3 h-3 mr-1" />
                   Knowledge Base
+                </button>
+                <button 
+                  className={`py-1 px-3 rounded text-sm flex items-center ${activeTab === 'advanced' ? 'bg-white text-indigo-700' : 'text-indigo-100 hover:bg-indigo-500'}`}
+                  onClick={() => setActiveTab('advanced')}
+                >
+                  <Zap className="w-3 h-3 mr-1" />
+                  Advanced AI
                 </button>
               </div>
             </div>
@@ -499,6 +511,50 @@ function App() {
                 <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Knowledge Base</h2>
               </div>
               <KnowledgeBase />
+            </section>
+          </div>
+        )}
+        
+        {activeTab === 'advanced' && (
+          <div className="grid grid-cols-1 gap-8">
+            <section>
+              <div className="flex items-center mb-6">
+                <RefreshCw className={`w-6 h-6 ${darkMode ? 'text-indigo-400' : 'text-indigo-600'} mr-2`} />
+                <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Smart Data Polling & Refresh System</h2>
+              </div>
+              <SmartDataPolling />
+            </section>
+            
+            <section>
+              <div className="flex items-center mb-6">
+                <Sliders className={`w-6 h-6 ${darkMode ? 'text-indigo-400' : 'text-indigo-600'} mr-2`} />
+                <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Autoscaler-Aware Slot Optimization</h2>
+              </div>
+              <AutoscalerSlotOptimization />
+            </section>
+            
+            <section>
+              <div className="flex items-center mb-6">
+                <PieChartIcon className={`w-6 h-6 ${darkMode ? 'text-indigo-400' : 'text-indigo-600'} mr-2`} />
+                <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>"Other Services" Decomposition</h2>
+              </div>
+              <ServicesDecomposition />
+            </section>
+            
+            <section>
+              <div className="flex items-center mb-6">
+                <Award className={`w-6 h-6 ${darkMode ? 'text-indigo-400' : 'text-indigo-600'} mr-2`} />
+                <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Optimization Score Engine</h2>
+              </div>
+              <OptimizationScoreEngine />
+            </section>
+            
+            <section>
+              <div className="flex items-center mb-6">
+                <Code className={`w-6 h-6 ${darkMode ? 'text-indigo-400' : 'text-indigo-600'} mr-2`} />
+                <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>AI-Powered Join Pattern Explorer</h2>
+              </div>
+              <JoinPatternExplorer />
             </section>
           </div>
         )}
