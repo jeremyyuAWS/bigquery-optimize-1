@@ -92,7 +92,7 @@ export function OptimizationScoreEngine() {
       current: '40% of tables without expiration',
       target: '< 15% of tables without expiration',
       impact: 'Implementing expiration policies would improve score by +4 points',
-      details: 'Many temporary or analytical tables don't have expiration policies, leading to unnecessary storage costs and potentially higher query costs when these tables are queried. Implementing appropriate table expiration policies based on data access patterns could reduce storage costs by up to 30%.'
+      details: `Many temporary or analytical tables don't have expiration policies, leading to unnecessary storage costs and potentially higher query costs when these tables are queried. Implementing appropriate table expiration policies based on data access patterns could reduce storage costs by up to 30%.`
     }
   ];
   
