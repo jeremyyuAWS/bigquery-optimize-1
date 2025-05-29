@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Database, Code, Copy, Check, Zap, Download, Trash } from 'lucide-react';
+import { Database, Code, Copy, Check, Zap, Download, Trash, BarChart2, Lock, Table, Shield } from 'lucide-react';
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import sql from 'react-syntax-highlighter/dist/esm/languages/hljs/sql';
 import { dracula } from 'react-syntax-highlighter/dist/esm/styles/hljs';
@@ -486,6 +486,456 @@ AS (
 
 -- Call the function
 SELECT * FROM \`project_id.dataset.get_transaction_with_product\`('2024-01-01');`
+        }
+      ]
+    },
+    {
+      id: 'complex-joins',
+      name: 'Complex Join Patterns',
+      icon: <Table className="h-5 w-5 text-blue-600" />,
+      description: 'Optimize complex JOIN patterns for enterprise scenarios',
+      count: 4,
+      scripts: [
+        {
+          id: 'join-hash-small-to-large',
+          name: 'Small Reference Table to Large Event Logs',
+          description: 'Optimize join between small reference table and large event log table',
+          savings: '68% cost reduction',
+          savingsAmount: 5600,
+          difficulty: 'Medium',
+          script: `-- Original query - joining small lookup tables to large event logs
+-- This is inefficient because it doesn't use partition pruning effectively
+SELECT
+  e.event_id,
+  e.timestamp,
+  e.user_id,
+  e.event_type,
+  e.page,
+  c.campaign_name,
+  c.channel,
+  c.source,
+  c.medium
+FROM \`project_id.dataset.events\` e
+LEFT JOIN \`project_id.dataset.campaigns\` c
+  ON e.campaign_id = c.campaign_id
+WHERE CAST(e.timestamp AS DATE) BETWEEN '2024-01-01' AND '2024-01-31'
+AND e.event_type = 'conversion';
+
+-- Optimized query - Uses partitioning effectively and includes broadcast join
+-- The campaigns table is small (reference table), so BigQuery will automatically broadcast it
+
+-- First, let's create a partitioned and clustered events table if not already done
+CREATE OR REPLACE TABLE \`project_id.dataset.events_optimized\`
+PARTITION BY DATE(timestamp)
+CLUSTER BY event_type, campaign_id
+AS SELECT * FROM \`project_id.dataset.events\`;
+
+-- Now the optimized query
+SELECT
+  e.event_id,
+  e.timestamp,
+  e.user_id,
+  e.event_type,
+  e.page,
+  c.campaign_name,
+  c.channel,
+  c.source,
+  c.medium
+FROM \`project_id.dataset.events_optimized\` e
+LEFT JOIN \`project_id.dataset.campaigns\` c
+  ON e.campaign_id = c.campaign_id
+WHERE e.timestamp >= TIMESTAMP('2024-01-01')
+  AND e.timestamp < TIMESTAMP('2024-02-01')
+  AND e.event_type = 'conversion';
+
+-- Additional optimization: create a covering index via a materialized view
+CREATE MATERIALIZED VIEW \`project_id.dataset.mv_conversion_events\`
+AS SELECT
+  event_id,
+  timestamp,
+  user_id,
+  event_type,
+  page,
+  campaign_id
+FROM \`project_id.dataset.events_optimized\`
+WHERE event_type = 'conversion';
+
+-- Most efficient query using the materialized view
+SELECT
+  e.event_id,
+  e.timestamp,
+  e.user_id,
+  e.event_type,
+  e.page,
+  c.campaign_name,
+  c.channel,
+  c.source,
+  c.medium
+FROM \`project_id.dataset.mv_conversion_events\` e
+LEFT JOIN \`project_id.dataset.campaigns\` c
+  ON e.campaign_id = c.campaign_id
+WHERE e.timestamp >= TIMESTAMP('2024-01-01')
+  AND e.timestamp < TIMESTAMP('2024-02-01');`
+        },
+        {
+          id: 'join-large-to-large',
+          name: 'Large-to-Large Table Join with Partitioning',
+          description: 'Optimize join between two large tables using partitioning strategies',
+          savings: '85% cost reduction',
+          savingsAmount: 7300,
+          difficulty: 'High',
+          script: `-- Original query - inefficient large-to-large table join
+-- Two large tables without partitioning optimization
+SELECT
+  u.user_id,
+  u.email,
+  u.signup_date,
+  u.country,
+  p.product_id,
+  p.product_name,
+  p.category,
+  COUNT(o.order_id) as order_count,
+  SUM(o.amount) as total_spend
+FROM \`project_id.dataset.users\` u
+JOIN \`project_id.dataset.orders\` o
+  ON u.user_id = o.user_id
+JOIN \`project_id.dataset.products\` p
+  ON o.product_id = p.product_id
+WHERE o.order_date BETWEEN '2023-01-01' AND '2024-01-31'
+GROUP BY 1, 2, 3, 4, 5, 6, 7;
+
+-- Step 1: Create properly partitioned and clustered tables
+CREATE OR REPLACE TABLE \`project_id.dataset.users_optimized\`
+CLUSTER BY user_id, country
+AS SELECT * FROM \`project_id.dataset.users\`;
+
+CREATE OR REPLACE TABLE \`project_id.dataset.orders_optimized\`
+PARTITION BY DATE(order_date)
+CLUSTER BY user_id, product_id
+AS SELECT * FROM \`project_id.dataset.orders\`;
+
+-- Step 2: Optimized query using the improved tables and pre-filtering
+WITH filtered_orders AS (
+  SELECT
+    user_id,
+    product_id,
+    order_id,
+    amount
+  FROM \`project_id.dataset.orders_optimized\`
+  WHERE order_date BETWEEN '2023-01-01' AND '2024-01-31'
+),
+
+user_order_summary AS (
+  SELECT
+    o.user_id,
+    o.product_id,
+    COUNT(o.order_id) AS order_count,
+    SUM(o.amount) AS total_spend
+  FROM filtered_orders o
+  GROUP BY 1, 2
+)
+
+SELECT
+  u.user_id,
+  u.email,
+  u.signup_date,
+  u.country,
+  p.product_id,
+  p.product_name,
+  p.category,
+  s.order_count,
+  s.total_spend
+FROM user_order_summary s
+JOIN \`project_id.dataset.users_optimized\` u
+  ON s.user_id = u.user_id
+JOIN \`project_id.dataset.products\` p
+  ON s.product_id = p.product_id;
+
+-- Step 3: For frequent analysis, create a materialized view
+CREATE MATERIALIZED VIEW \`project_id.dataset.mv_user_product_analysis\`
+AS 
+WITH order_summary AS (
+  SELECT
+    user_id,
+    product_id,
+    COUNT(order_id) AS order_count,
+    SUM(amount) AS total_spend
+  FROM \`project_id.dataset.orders_optimized\`
+  GROUP BY 1, 2
+)
+
+SELECT
+  u.user_id,
+  u.email,
+  u.signup_date,
+  u.country,
+  p.product_id,
+  p.product_name,
+  p.category,
+  IFNULL(o.order_count, 0) AS order_count,
+  IFNULL(o.total_spend, 0) AS total_spend
+FROM \`project_id.dataset.users_optimized\` u
+LEFT JOIN order_summary o
+  ON u.user_id = o.user_id
+LEFT JOIN \`project_id.dataset.products\` p
+  ON o.product_id = p.product_id;`
+        },
+        {
+          id: 'join-nested-vs-flattened',
+          name: 'Nested vs. Flattened Structure Join',
+          description: 'Compare cost and performance of nested vs. flattened data structures',
+          savings: '72% cost reduction',
+          savingsAmount: 5900,
+          difficulty: 'Medium',
+          script: `-- Original flattened structure approach (inefficient for 1-to-many relationships)
+-- This approach creates data duplication and requires JOINs
+SELECT
+  o.order_id,
+  o.order_date,
+  o.customer_id,
+  c.name AS customer_name,
+  c.email AS customer_email,
+  i.item_id,
+  i.product_id,
+  i.quantity,
+  i.price,
+  i.quantity * i.price AS item_total
+FROM \`project_id.dataset.orders\` o
+JOIN \`project_id.dataset.customers\` c
+  ON o.customer_id = c.customer_id
+JOIN \`project_id.dataset.order_items\` i
+  ON o.order_id = i.order_id
+WHERE o.order_date BETWEEN '2024-01-01' AND '2024-01-31';
+
+-- Optimized approach using nested structures
+-- Step 1: Create a nested table structure
+CREATE OR REPLACE TABLE \`project_id.dataset.orders_nested\`
+PARTITION BY DATE(order_date)
+AS
+SELECT
+  o.order_id,
+  o.order_date,
+  o.customer_id,
+  c.name AS customer_name,
+  c.email AS customer_email,
+  ARRAY_AGG(
+    STRUCT(
+      i.item_id,
+      i.product_id,
+      i.quantity,
+      i.price,
+      i.quantity * i.price AS item_total
+    )
+  ) AS items
+FROM \`project_id.dataset.orders\` o
+JOIN \`project_id.dataset.customers\` c
+  ON o.customer_id = c.customer_id
+JOIN \`project_id.dataset.order_items\` i
+  ON o.order_id = i.order_id
+GROUP BY 1, 2, 3, 4, 5;
+
+-- Step 2: Query the nested structure (much more efficient)
+SELECT
+  order_id,
+  order_date,
+  customer_name,
+  (SELECT SUM(item.item_total) FROM UNNEST(items) AS item) AS order_total,
+  ARRAY_LENGTH(items) AS item_count
+FROM \`project_id.dataset.orders_nested\`
+WHERE order_date BETWEEN '2024-01-01' AND '2024-01-31';
+
+-- Step 3: If you need to work with individual items, you can unnest
+SELECT
+  o.order_id,
+  o.order_date,
+  o.customer_name,
+  item.item_id,
+  item.product_id,
+  item.quantity,
+  item.price,
+  item.item_total
+FROM \`project_id.dataset.orders_nested\` o,
+UNNEST(o.items) AS item
+WHERE o.order_date BETWEEN '2024-01-01' AND '2024-01-31'
+AND item.price > 100;`
+        },
+        {
+          id: 'join-multi-table-partitioned',
+          name: 'Multi-Table Join with Partitioning Strategy',
+          description: 'Optimize complex join across multiple large tables using partitioning',
+          savings: '81% cost reduction',
+          savingsAmount: 8200,
+          difficulty: 'High',
+          script: `-- Original complex multi-table join with inefficient pattern
+-- This query analyzes user behavior across multiple large tables
+SELECT
+  u.user_id,
+  u.email,
+  u.registration_date,
+  e.event_type,
+  e.event_timestamp,
+  p.product_id,
+  p.product_name,
+  p.category,
+  o.order_id,
+  o.status,
+  o.amount
+FROM \`project_id.dataset.users\` u
+LEFT JOIN \`project_id.dataset.events\` e
+  ON u.user_id = e.user_id
+LEFT JOIN \`project_id.dataset.products\` p
+  ON e.product_id = p.product_id
+LEFT JOIN \`project_id.dataset.orders\` o
+  ON u.user_id = o.user_id AND e.product_id = o.product_id
+WHERE CAST(e.event_timestamp AS DATE) BETWEEN '2024-01-01' AND '2024-01-31'
+  AND e.event_type IN ('view', 'add_to_cart', 'purchase');
+
+-- Step 1: Create properly partitioned and clustered tables
+CREATE OR REPLACE TABLE \`project_id.dataset.users_optimized\`
+CLUSTER BY user_id
+AS SELECT * FROM \`project_id.dataset.users\`;
+
+CREATE OR REPLACE TABLE \`project_id.dataset.events_optimized\`
+PARTITION BY DATE(event_timestamp)
+CLUSTER BY user_id, product_id, event_type
+AS SELECT * FROM \`project_id.dataset.events\`;
+
+CREATE OR REPLACE TABLE \`project_id.dataset.orders_optimized\`
+PARTITION BY DATE(order_date)
+CLUSTER BY user_id, product_id
+AS SELECT * FROM \`project_id.dataset.orders\`;
+
+-- Step 2: Optimized multi-table join with pre-filtering
+WITH filtered_events AS (
+  SELECT
+    user_id,
+    event_type,
+    event_timestamp,
+    product_id
+  FROM \`project_id.dataset.events_optimized\`
+  WHERE event_timestamp >= TIMESTAMP('2024-01-01')
+    AND event_timestamp < TIMESTAMP('2024-02-01')
+    AND event_type IN ('view', 'add_to_cart', 'purchase')
+),
+
+filtered_orders AS (
+  SELECT
+    user_id,
+    order_id,
+    product_id,
+    status,
+    amount,
+    order_date
+  FROM \`project_id.dataset.orders_optimized\`
+  WHERE order_date BETWEEN '2024-01-01' AND '2024-01-31'
+)
+
+SELECT
+  u.user_id,
+  u.email,
+  u.registration_date,
+  e.event_type,
+  e.event_timestamp,
+  p.product_id,
+  p.product_name,
+  p.category,
+  o.order_id,
+  o.status,
+  o.amount
+FROM \`project_id.dataset.users_optimized\` u
+JOIN filtered_events e
+  ON u.user_id = e.user_id
+JOIN \`project_id.dataset.products\` p
+  ON e.product_id = p.product_id
+LEFT JOIN filtered_orders o
+  ON u.user_id = o.user_id AND e.product_id = o.product_id;
+
+-- Step 3: For frequently accessed data, create a materialized view
+CREATE MATERIALIZED VIEW \`project_id.dataset.mv_user_product_interactions\`
+AS
+SELECT
+  u.user_id,
+  u.email,
+  e.event_type,
+  e.event_timestamp,
+  p.product_id,
+  p.product_name,
+  p.category
+FROM \`project_id.dataset.users_optimized\` u
+JOIN \`project_id.dataset.events_optimized\` e
+  ON u.user_id = e.user_id
+JOIN \`project_id.dataset.products\` p
+  ON e.product_id = p.product_id
+WHERE e.event_type IN ('view', 'add_to_cart', 'purchase');`
+        }
+      ]
+    },
+    {
+      id: 'security',
+      name: 'Data Security & Governance',
+      icon: <Shield className="h-5 w-5 text-red-600" />,
+      description: 'Implement security best practices for data access',
+      count: 1,
+      scripts: [
+        {
+          id: 'security-column-level',
+          name: 'Implement Column-Level Security',
+          description: 'Create secure views with column-level access control',
+          savings: '20% access control overhead reduction',
+          savingsAmount: 1500,
+          difficulty: 'Medium',
+          script: `-- Create a secure view with column-level access control
+-- Instead of creating multiple filtered views for different departments
+
+-- Step 1: Create the base secure view
+CREATE OR REPLACE VIEW \`project_id.dataset.secure_customer_data\`
+OPTIONS(
+  security_predicate=
+    (region = SESSION_USER_REGION() OR
+     SESSION_USER() IN (
+       SELECT email FROM \`project_id.dataset.data_admins\`
+     ))
+)
+AS SELECT * FROM \`project_id.dataset.customers\`;
+
+-- Step 2: Grant column-level access to different teams
+-- Finance team gets access to financial columns only
+GRANT SELECT(customer_id, signup_date, plan_type, monthly_spend, total_spend)
+ON VIEW \`project_id.dataset.secure_customer_data\`
+TO GROUP "finance@company.com";
+
+-- Marketing team gets access to profile data but not financial details
+GRANT SELECT(customer_id, name, email, signup_date, acquisition_channel, 
+             last_active_date, country)
+ON VIEW \`project_id.dataset.secure_customer_data\`
+TO GROUP "marketing@company.com";
+
+-- Customer support gets access to profile and limited financial data
+GRANT SELECT(customer_id, name, email, phone, address, signup_date, 
+             plan_type, last_active_date, country)
+ON VIEW \`project_id.dataset.secure_customer_data\`
+TO GROUP "support@company.com";
+
+-- Step 3: Create an authorized dataset for secure access
+CREATE SCHEMA \`project_id.secure_analytics\`
+OPTIONS(
+  authorized_view = ["\`project_id.dataset.secure_customer_data\`"]
+);
+
+-- Step 4: Create additional secure views for specific purposes
+CREATE OR REPLACE VIEW \`project_id.secure_analytics.customer_retention_analysis\`
+AS
+SELECT
+  DATE_TRUNC(signup_date, MONTH) as cohort_month,
+  COUNT(DISTINCT customer_id) as cohort_size,
+  ROUND(AVG(monthly_spend), 2) as avg_monthly_spend,
+  ROUND(AVG(total_spend), 2) as avg_lifetime_value
+FROM \`project_id.dataset.secure_customer_data\`
+GROUP BY 1
+ORDER BY 1;
+
+-- This approach allows for fine-grained access control
+-- while maintaining a single source of truth`
         }
       ]
     }
