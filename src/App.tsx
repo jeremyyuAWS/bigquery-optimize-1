@@ -1,7 +1,7 @@
 import { CostAnalysis } from './components/CostAnalysis';
 import { QueryAnalytics } from './components/QueryAnalytics';
 import { StorageInsights } from './components/StorageInsights';
-import { AlertTriangle, BarChart3, Bell, Database, DollarSign, Settings, Info, TrendingUp, Brain, Zap, Calendar, Moon, Sun, FileText, MessageCircle, BookOpen, Wrench, Code, Download, Play, Pause, Lock, Table, AlertCircle, Users, Shield, MoveRight, HelpCircle } from 'lucide-react';
+import { AlertTriangle, BarChart3, Bell, Database, DollarSign, Settings, Info, TrendingUp, Brain, Calendar, Moon, Sun, FileText, MessageCircle, BookOpen, Wrench, Code, Download, Play, Pause, Lock, Table, AlertCircle, Users, Shield, MoveRight, HelpCircle } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 import { useState, useEffect } from 'react';
 import { CostAlert } from './components/CostAlert';
@@ -29,6 +29,7 @@ import { IntelligentMigrationAssistant } from './components/IntelligentMigration
 import { WelcomeModal } from './components/WelcomeModal';
 import { AICostForecasting } from './components/AICostForecasting';
 import { AIOptimizationWorkflow } from './components/AIOptimizationWorkflow';
+import { LyzrLogo } from './components/LyzrLogo';
 
 function App() {
   const [showSettings, setShowSettings] = useState(false);
@@ -70,7 +71,7 @@ function App() {
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <div className="flex items-center">
-                <Zap className={`w-8 h-8 ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`} />
+                <LyzrLogo className={`w-8 h-8 ${darkMode ? 'text-indigo-400' : 'text-indigo-600'}`} />
                 <span className={`ml-2 text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>QueryCraft</span>
               </div>
               <span className="ml-2 text-sm text-gray-500">|</span>

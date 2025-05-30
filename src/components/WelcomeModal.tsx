@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X, Zap, Database, DollarSign, Brain, BarChart3, Code, Calendar, CheckCircle, ChevronRight, PieChart, TrendingDown, LineChart as LineChartIcon, PieChart as PieChartIcon, Sparkles, BarChart2, ArrowRight } from 'lucide-react';
+import { X, Database, DollarSign, Brain, BarChart3, Code, Calendar, CheckCircle, ChevronRight, PieChart, TrendingDown, LineChart as LineChartIcon, PieChart as PieChartIcon, Sparkles, BarChart2, ArrowRight } from 'lucide-react';
+import { LyzrLogo } from './LyzrLogo';
 
 interface WelcomeModalProps {
   open: boolean;
@@ -130,7 +131,7 @@ export function WelcomeModal({ open, onClose }: WelcomeModalProps) {
           <div className="flex justify-between items-center">
             <div className="flex items-center">
               <div className="bg-white p-2 rounded-lg mr-4">
-                <Zap className="h-10 w-10 text-indigo-600" />
+                <LyzrLogo className="h-10 w-10 text-indigo-600" />
               </div>
               <div>
                 <h2 className="text-3xl font-bold">Welcome to QueryCraft</h2>
